@@ -47,134 +47,209 @@ const pricing = [
   { tier: 'Custom', amount: "Let's talk", for: 'For specialized deployments with tailored requirements.' },
 ]
 
-const trustStages = [
-  {
-    id: 'DEVICE',
-    desc: 'An IoT device enters the system.',
-    status: { identity: 'PENDING', certificate: '—', connection: '—', access: '—', state: 'UNKNOWN' },
-  },
-  {
-    id: 'IDENTITY',
-    desc: 'The device receives a unique cryptographic identity.',
-    status: { identity: 'ISSUED', certificate: 'GENERATED', connection: '—', access: '—', state: 'UNKNOWN' },
-  },
-  {
-    id: 'VERIFY',
-    desc: 'The device is authenticated before communication.',
-    status: { identity: 'VERIFIED', certificate: 'VALID', connection: '—', access: '—', state: 'UNKNOWN' },
-  },
-  {
-    id: 'CONNECT',
-    desc: 'A secure TLS connection is established.',
-    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: '—', state: 'SECURED' },
-  },
-  {
-    id: 'CONTROL',
-    desc: 'Access is restricted using authorization and access control.',
-    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: 'AUTHORIZED', state: 'SECURED' },
-  },
-  {
-    id: 'TRUSTED',
-    desc: 'The device becomes a trusted endpoint.',
-    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: 'AUTHORIZED', state: 'TRUSTED' },
-  },
+type IconProps = { className?: string }
+const svgBase = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.5,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+}
+
+function IconDevice(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <rect x="3" y="7" width="13" height="10" rx="1" />
+      <circle cx="9.5" cy="12" r="2.4" />
+      <path d="M16 10.2l5-2.2v8l-5-2.2" />
+    </svg>
+  )
+}
+
+function IconIdentity(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <rect x="5" y="3" width="14" height="18" rx="1" />
+      <path d="M8 7h8M8 10h5" />
+      <path d="M9 16a3 3 0 0 1 6 0" />
+      <path d="M11 16a1 1 0 0 1 2 0v1.4" />
+    </svg>
+  )
+}
+
+function IconVerify(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <path d="M12 3l7 3v5c0 4.4-3 7-7 8-4-1-7-3.6-7-8V6z" />
+      <path d="M9 12l2 2 4-4.2" />
+    </svg>
+  )
+}
+
+function IconConnect(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <rect x="5" y="10" width="14" height="9" rx="1" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <circle cx="12" cy="14.4" r="1" />
+      <path d="M12 15.4v1.6" />
+    </svg>
+  )
+}
+
+function IconControl(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <rect x="4" y="4" width="16" height="6" rx="1" />
+      <rect x="4" y="14" width="16" height="6" rx="1" />
+      <path d="M7.5 7h.01M7.5 17h.01" />
+      <path d="M12 7h4M12 17h4" />
+    </svg>
+  )
+}
+
+function IconTrusted(props: IconProps) {
+  return (
+    <svg {...svgBase} {...props} aria-hidden="true">
+      <circle cx="12" cy="12" r="8" strokeDasharray="2.5 3" opacity="0.55" />
+      <circle cx="12" cy="12" r="3.4" />
+      <path d="M10.6 12l1 1 1.9-2.1" />
+    </svg>
+  )
+}
+
+const flowStages = [
+  { id: 'DEVICE', label: 'Device', Icon: IconDevice },
+  { id: 'IDENTITY', label: 'Identity', Icon: IconIdentity },
+  { id: 'VERIFY', label: 'Verify', Icon: IconVerify },
+  { id: 'CONNECT', label: 'Connect', Icon: IconConnect },
+  { id: 'CONTROL', label: 'Control', Icon: IconControl },
+  { id: 'TRUSTED', label: 'Trusted', Icon: IconTrusted },
 ] as const
 
-function useActiveStage(count: number) {
-  const [active, setActive] = useState(0)
-  const refs = useRef<(HTMLElement | null)[]>([])
+function useScrollProgress() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    const nodes = refs.current.filter(Boolean) as HTMLElement[]
-    if (!nodes.length) return
+    const el = ref.current
+    if (!el) return
+    let raf = 0
+    const update = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect()
+        const total = rect.height - window.innerHeight
+        const scrolled = Math.min(Math.max(-rect.top, 0), Math.max(total, 1))
+        setProgress(total > 0 ? scrolled / total : 0)
+      })
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const idx = Number((entry.target as HTMLElement).dataset.stage)
-            setActive((prev) => (idx > prev ? idx : prev))
-          }
-        })
-      },
-      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
-    )
-
-    nodes.forEach((n) => observer.observe(n))
-    return () => observer.disconnect()
-  }, [count])
-
-  return { active, refs }
+  return { ref, progress }
 }
 
 export function ProductHero() {
-  const { active, refs } = useActiveStage(trustStages.length)
-  const status = trustStages[active].status
-  const isTrusted = status.state === 'TRUSTED'
+  const { ref, progress } = useScrollProgress()
+  const n = flowStages.length
+  const t = progress * n
+  const active = Math.min(Math.floor(t), n - 1)
 
   return (
-    <section id="hero" className="section product-trust" aria-labelledby="product-title">
-      <div className="shell">
+    <section id="hero" className="product-flow" aria-labelledby="product-title">
+      <div className="flow-intro">
         <SectionLabel>The product</SectionLabel>
-        <h2 id="product-title" className="trust-headline">
+        <h2 id="product-title" className="flow-headline">
           Trust is built,
           <br />
           not assumed.
         </h2>
+        <p className="flow-sub">
+          From device to defense, NAKSHATRA establishes verifiable trust for every connection.
+        </p>
+      </div>
 
-        <div className="trust-body">
-          <ol className="trust-track" aria-label="How trust is established">
-            {trustStages.map((stage, i) => (
-              <li
-                key={stage.id}
-                data-stage={i}
-                ref={(el) => {
-                  refs.current[i] = el
-                }}
-                className={`trust-stage${i <= active ? ' is-active' : ''}${i === active ? ' is-current' : ''}`}
-                style={{ marginLeft: `${i * 2.4}rem` }}
-              >
-                <span className="trust-num">{String(i + 1).padStart(2, '0')}</span>
-                <div className="trust-stage-copy">
-                  <h3>{stage.id}</h3>
-                  <p>{stage.desc}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-
-          <aside className="trust-panel" aria-live="polite">
-            <div className="panel-head">
-              <span>Device Status</span>
-              <span className={`panel-dot${isTrusted ? ' on' : ''}`} aria-hidden="true" />
+      <div className="flow-scroll" ref={ref}>
+        <div className="flow-sticky">
+          <div className="flow-diagram">
+            <div className="flow-bg" aria-hidden="true">
+              <svg viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid slice">
+                <g stroke="currentColor" strokeWidth="1" fill="none" opacity="0.7">
+                  <path d="M120 90L300 200L180 320" />
+                  <path d="M300 200L520 120L760 180" />
+                  <path d="M520 120L640 300L900 340" />
+                  <path d="M760 180L980 100L1080 260" />
+                  <path d="M640 300L900 340L1080 260" />
+                  <path d="M180 320L420 380L640 300" />
+                </g>
+                <g fill="currentColor">
+                  {[
+                    [120, 90],
+                    [300, 200],
+                    [180, 320],
+                    [520, 120],
+                    [760, 180],
+                    [640, 300],
+                    [900, 340],
+                    [980, 100],
+                    [1080, 260],
+                    [420, 380],
+                  ].map(([cx, cy], i) => (
+                    <circle key={i} cx={cx} cy={cy} r="3" />
+                  ))}
+                </g>
+              </svg>
             </div>
-            <div className="panel-id">DEVICE_7F29</div>
-            <dl className="panel-rows">
-              <div className="panel-row">
-                <dt>Identity</dt>
-                <dd className={status.identity === 'VERIFIED' ? 'ok' : ''}>{status.identity}</dd>
-              </div>
-              <div className="panel-row">
-                <dt>Certificate</dt>
-                <dd className={status.certificate === 'VALID' ? 'ok' : ''}>{status.certificate}</dd>
-              </div>
-              <div className="panel-row">
-                <dt>Connection</dt>
-                <dd className={status.connection === 'TLS' ? 'ok' : ''}>{status.connection}</dd>
-              </div>
-              <div className="panel-row">
-                <dt>Access</dt>
-                <dd className={status.access === 'AUTHORIZED' ? 'ok' : ''}>{status.access}</dd>
-              </div>
-              <div className="panel-row">
-                <dt>Status</dt>
-                <dd className={`panel-state${isTrusted ? ' trusted' : ''}`}>
-                  <span className="state-dot" aria-hidden="true" />
-                  {status.state}
-                </dd>
-              </div>
-            </dl>
-          </aside>
+
+            <ol className="flow-nodes" aria-label="NAKSHATRA security flow">
+              {flowStages.map((stage, i) => {
+                const isActive = i <= active
+                const isCurrent = i === active
+                const isTrusted = i === n - 1 && active === n - 1
+                const { Icon } = stage
+                return (
+                  <li key={stage.id} style={{ display: 'contents' }}>
+                    <div
+                      className={`flow-node${isActive ? ' is-active' : ''}${isCurrent ? ' is-current' : ''}${
+                        isTrusted ? ' is-trusted' : ''
+                      }`}
+                    >
+                      <div className="node-frame">
+                        <Icon />
+                      </div>
+                      <div className="node-meta">
+                        <span className="node-num">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="node-name">{stage.label}</span>
+                      </div>
+                    </div>
+                    {i < n - 1 && (() => {
+                      const fill = Math.min(Math.max(t - i, 0), 1)
+                      const particle = fill > 0.02 && fill < 0.98 ? 1 : 0
+                      return (
+                        <span
+                          className="flow-link"
+                          aria-hidden="true"
+                          style={{ ['--fill' as string]: fill, ['--particle' as string]: particle } as React.CSSProperties}
+                        >
+                          <span className="link-fill" />
+                          <span className="link-particle" />
+                        </span>
+                      )
+                    })()}
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
         </div>
       </div>
     </section>
