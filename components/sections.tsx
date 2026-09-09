@@ -1,3 +1,7 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <p className="section-label">
@@ -43,13 +47,135 @@ const pricing = [
   { tier: 'Custom', amount: "Let's talk", for: 'For specialized deployments with tailored requirements.' },
 ]
 
+const trustStages = [
+  {
+    id: 'DEVICE',
+    desc: 'An IoT device enters the system.',
+    status: { identity: 'PENDING', certificate: '—', connection: '—', access: '—', state: 'UNKNOWN' },
+  },
+  {
+    id: 'IDENTITY',
+    desc: 'The device receives a unique cryptographic identity.',
+    status: { identity: 'ISSUED', certificate: 'GENERATED', connection: '—', access: '—', state: 'UNKNOWN' },
+  },
+  {
+    id: 'VERIFY',
+    desc: 'The device is authenticated before communication.',
+    status: { identity: 'VERIFIED', certificate: 'VALID', connection: '—', access: '—', state: 'UNKNOWN' },
+  },
+  {
+    id: 'CONNECT',
+    desc: 'A secure TLS connection is established.',
+    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: '—', state: 'SECURED' },
+  },
+  {
+    id: 'CONTROL',
+    desc: 'Access is restricted using authorization and access control.',
+    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: 'AUTHORIZED', state: 'SECURED' },
+  },
+  {
+    id: 'TRUSTED',
+    desc: 'The device becomes a trusted endpoint.',
+    status: { identity: 'VERIFIED', certificate: 'VALID', connection: 'TLS', access: 'AUTHORIZED', state: 'TRUSTED' },
+  },
+] as const
+
+function useActiveStage(count: number) {
+  const [active, setActive] = useState(0)
+  const refs = useRef<(HTMLElement | null)[]>([])
+
+  useEffect(() => {
+    const nodes = refs.current.filter(Boolean) as HTMLElement[]
+    if (!nodes.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = Number((entry.target as HTMLElement).dataset.stage)
+            setActive((prev) => (idx > prev ? idx : prev))
+          }
+        })
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
+    )
+
+    nodes.forEach((n) => observer.observe(n))
+    return () => observer.disconnect()
+  }, [count])
+
+  return { active, refs }
+}
+
 export function ProductHero() {
+  const { active, refs } = useActiveStage(trustStages.length)
+  const status = trustStages[active].status
+  const isTrusted = status.state === 'TRUSTED'
+
   return (
-    <section id="hero" className="section product-hero">
+    <section id="hero" className="section product-trust" aria-labelledby="product-title">
       <div className="shell">
         <SectionLabel>The product</SectionLabel>
-        <h1>SECURE EVERY DEVICE.</h1>
-        <p>Lightweight security infrastructure for connected devices.</p>
+        <h2 id="product-title" className="trust-headline">
+          Trust is built,
+          <br />
+          not assumed.
+        </h2>
+
+        <div className="trust-body">
+          <ol className="trust-track" aria-label="How trust is established">
+            {trustStages.map((stage, i) => (
+              <li
+                key={stage.id}
+                data-stage={i}
+                ref={(el) => {
+                  refs.current[i] = el
+                }}
+                className={`trust-stage${i <= active ? ' is-active' : ''}${i === active ? ' is-current' : ''}`}
+                style={{ marginLeft: `${i * 2.4}rem` }}
+              >
+                <span className="trust-num">{String(i + 1).padStart(2, '0')}</span>
+                <div className="trust-stage-copy">
+                  <h3>{stage.id}</h3>
+                  <p>{stage.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <aside className="trust-panel" aria-live="polite">
+            <div className="panel-head">
+              <span>Device Status</span>
+              <span className={`panel-dot${isTrusted ? ' on' : ''}`} aria-hidden="true" />
+            </div>
+            <div className="panel-id">DEVICE_7F29</div>
+            <dl className="panel-rows">
+              <div className="panel-row">
+                <dt>Identity</dt>
+                <dd className={status.identity === 'VERIFIED' ? 'ok' : ''}>{status.identity}</dd>
+              </div>
+              <div className="panel-row">
+                <dt>Certificate</dt>
+                <dd className={status.certificate === 'VALID' ? 'ok' : ''}>{status.certificate}</dd>
+              </div>
+              <div className="panel-row">
+                <dt>Connection</dt>
+                <dd className={status.connection === 'TLS' ? 'ok' : ''}>{status.connection}</dd>
+              </div>
+              <div className="panel-row">
+                <dt>Access</dt>
+                <dd className={status.access === 'AUTHORIZED' ? 'ok' : ''}>{status.access}</dd>
+              </div>
+              <div className="panel-row">
+                <dt>Status</dt>
+                <dd className={`panel-state${isTrusted ? ' trusted' : ''}`}>
+                  <span className="state-dot" aria-hidden="true" />
+                  {status.state}
+                </dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
       </div>
     </section>
   )
