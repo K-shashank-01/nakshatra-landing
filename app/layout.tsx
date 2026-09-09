@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NAKSHATRA — Stories Shaped by Light',
-  description: 'NAKSHATRA is an independent motion and creative studio for ideas that deserve a little more atmosphere.',
+  title: 'NAKSHATRA — Secure IoT Device Authentication',
+  description: 'NAKSHATRA is a secure device authentication framework for IoT: unique device identity, automated onboarding, strong authentication, encrypted communication and credential lifecycle management.',
   generator: 'v0.app',
 }
 
